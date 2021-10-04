@@ -1,85 +1,68 @@
-var cityFormEl = document.querySelector("#city-form");
-var nameInputEl = document.querySelector("#weather");
-var weatherResultContainerEl = document.querySelector("#weather-container");
-var weatherResultSearchTerm = document.querySelector("#weather-search-term");
+const form = document.querySelector(".top-banner form");
+const input = document.querySelector(".top-banner input");
+const msg = document.querySelector(".top-banner .msg");
+const list = document.querySelector(".ajax-section .cities");
+const apiKey = "0aca813a353ceacb0a70838ee064eccc";
 
-var formSubmitHandler = function(event) {
-  // prevent page from refreshing
-  event.preventDefault();
+form.addEventListener("submit", e => {
+  e.preventDefault();
+  let inputVal = input.value;
 
-  // get value from input element
-  var city = nameInputEl.value.trim();
+  const listItems = list.querySelectorAll(".ajax-section .city");
+  const listItemsArray = Array.from(listItems);
 
-  if (city) {
-    getcityweatherResult(city);
-
-    // clear old content
-    weatherResultContainerEl.textContent = "";
-    nameInputEl.value = "";
-  } else {
-    alert("Please enter a city");
-  }
-};
-
-var getcityweatherResult = function(city) {
-  // format the github api url
-  var apiUrl = "api.openweathermap.org/data/2.5/forecast?q={Minneapolis}}&appid=${0aca813a353ceacb0a70838ee064eccc}";
-
-  // make a get request to url
-  fetch(apiUrl)
-    .then(function(response) {
-      // request was successful
-      if (response.ok) {
-        console.log(response);
-        response.json().then(function(data) {
-          console.log(data);
-          displayweatherResult(data, city);
-        });
+  if (listItemsArray.length > 0) {
+    const filteredArray = listItemsArray.filter(el => {
+      let content = "";
+      if (inputVal.includes(",")) {
+        if (inputVal.split(",")[1].length > 2) {
+          inputVal = inputVal.split(",")[0];
+          content = el
+            .querySelector(".city-name span")
+            .textContent.toLowerCase();
+        } else {
+          content = el.querySelector(".city-name").dataset.name.toLowerCase();
+        }
       } else {
-        alert("Error: " + response.statusText);
+        content = el.querySelector(".city-name span").textContent.toLowerCase();
       }
-    })
-    .catch(function(error) {
-      alert("Unable to connect to OpenWeather");
+      return content == inputVal.toLowerCase();
     });
-};
-
-var displayweatherResult = function(weatherResult, searchTerm) {
-  // check if api returned any weatherResult
-  if (weatherResult.length === 0) {
-    weatherResultContainerEl.textContent = "No weatherResultitories found.";
-    return;
   }
 
-  weatherResultSearchTerm.textContent = searchTerm;
+  const url = `https://api.openweathermap.org/data/2.5/weather?q=${inputVal}&appid=${apiKey}&units=us`;
 
-  // loop over weatherResult
-  for (var i = 0; i < weatherResult.length; i++) {
-    // format weatherResult name
-    var weatherResultName = weatherResult[i].owner.login + "/" + weatherResult[i].name;
+  fetch(url)
+    .then(response => response.json())
+    .then(data => {
+      const { main, name, sys, weather } = data;
+      const icon = `https://s3-us-west-2.amazonaws.com/s.cdpn.io/162656/${
+        weather[0]["icon"]
+      }.svg`;
 
-    // create a container for each weatherResult
-    var weatherResultEl = document.createElement("div");
-    weatherResultEl.classList = "list-item flex-row justify-space-between align-center";
+      const li = document.createElement("li");
+      li.classList.add("city");
+      const markup = `
+        <h2 class="city-name" data-name="${name},${sys.country}">
+          <span>${name}</span>
+          <sup>${sys.country}</sup>
+        </h2>
+        <div class="city-temp">${Math.round(main.temp)}<sup>°C</sup></div>
+        <figure>
+          <img class="city-icon" src="${icon}" alt="${
+        weather[0]["description"]
+      }">
+          <figcaption>${weather[0]["description"]}</figcaption>
+        </figure>
+      `;
+      li.innerHTML = markup;
+      list.appendChild(li);
+    })
+    .catch(() => {
+      msg.textContent = "Please search for a valid city";
+    });
 
-    // create a span element to hold weatherResults
-    var titleEl = document.createElement("span");
-    titleEl.textContent = weatherResultName;
-
-    // append to container
-    weatherResultEl.appendChild(titleEl);
-
-    // create a  element
-    var statusEl = document.createElement("span");
-    statusEl.classList = "flex-row align-center";
-
-    // append to container
-    weatherResultEl.appendChild(statusEl);
-
-    // append container to the dom
-    weatherResultContainerEl.appendChild(weatherResultEl);
-  }
-};
-
-// add event listeners to forms
-cityFormEl.addEventListener("submit", formSubmitHandler);
+  msg.textContent = "";
+  form.reset();
+  input.focus();
+});
